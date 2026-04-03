@@ -1,0 +1,64 @@
+# taskr
+
+A simple CLI tool for managing tasks from the terminal.
+
+## Installation
+
+```bash
+git clone https://github.com/your-username/taskr.git
+cd taskr
+npm install
+npm link
+```
+
+## Usage
+
+```bash
+taskr <command> [options]
+```
+
+## Commands
+
+### list
+
+Display tasks.
+
+```bash
+taskr list
+```
+
+#### Options
+
+```bash
+-d, --date <date>         Filter tasks by date
+-p, --priority <number>   Filter tasks by priority
+-s, --status <status>     Filter by status (done | todo)
+```
+
+#### Examples
+
+```bash
+taskr list
+taskr list -d 05.04.2026
+taskr list -p 2
+taskr list -s done
+taskr list -d 05.04.2026 -p 2 -s todo
+```
+
+## Data format
+
+Tasks are stored in a `data.csv` file:
+
+```csv
+id,text,date,priority,done
+1,Task example,05.04.2026,2,false
+```
+
+## Tech stack
+
+- Node.js
+- TypeScript
+- commander
+- chalk
+- csv
+- cli-table3
