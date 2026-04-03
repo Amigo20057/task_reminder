@@ -5,7 +5,7 @@ A simple CLI tool for managing tasks from the terminal.
 ## Installation
 
 ```bash
-git clone https://github.com/your-username/taskr.git
+git clone https://github.com/Amigo20057/task_reminder.git
 cd taskr
 npm install
 npm link
