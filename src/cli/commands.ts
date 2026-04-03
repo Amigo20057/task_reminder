@@ -5,21 +5,21 @@ import fs from "fs";
 
 type OptionsType = {
   date?: string;
-  priority?: string;
-  status?: string;
+  priority?: number;
+  status?: "done" | "todo";
 };
 
 type TaskType = {
   id: number;
   text: string;
   date: string;
-  done: string;
   priority: string;
+  done: boolean;
 };
 
 type TaskInput = {
   text: string;
-  date: string;
+  date?: string;
   priority: number;
 };
 
@@ -37,7 +37,7 @@ export const getList = (csvFile: Buffer, options: OptionsType) => {
   });
 
   let tasks = rowRecords.map((task: any) => ({
-    id: task.id,
+    id: Number(task.id),
     text: task.text,
     date: task.date,
     done: task.done === "true",
@@ -48,24 +48,13 @@ export const getList = (csvFile: Buffer, options: OptionsType) => {
     tasks = tasks.filter((task) => task.date === options.date);
   }
 
-  if (options.priority) {
-    tasks = tasks.filter((task) => task.priority === Number(options.priority));
+  if (options.priority !== undefined) {
+    tasks = tasks.filter((task) => task.priority === options.priority);
   }
 
   if (options.status) {
-    const statusMap: Record<string, boolean> = {
-      done: true,
-      todo: false,
-    };
-
-    const status = statusMap[options.status];
-
-    if (status === undefined) {
-      console.log(chalk.red("Invalid status. Use 'done' or 'todo'"));
-      return;
-    }
-
-    tasks = tasks.filter((task) => task.done === status);
+    const done = options.status === "done";
+    tasks = tasks.filter((task) => task.done === done);
   }
 
   if (tasks.length === 0) {
@@ -119,34 +108,46 @@ export const createTask = (
 export const deleteTask = (filePath: string, id: number) => {
   const csvFile = fs.readFileSync(filePath, "utf-8");
 
-  const rows = parse(csvFile, {
+  const rows: TaskType[] = parse(csvFile, {
     columns: true,
     skip_empty_lines: true,
-  });
+  }).map((row: any) => ({
+    id: Number(row.id),
+    text: row.text,
+    date: row.date,
+    priority: row.priority,
+    done: row.done === "true",
+  }));
 
-  const taskIndex = rows.findIndex((row: any) => Number(row.id) === id);
+  const index = rows.findIndex((task) => task.id === id);
 
-  if (taskIndex === -1) {
+  if (index === -1) {
     console.log(chalk.red(`Task with ID ${id} not found`));
     return;
   }
 
-  rows.splice(taskIndex, 1);
+  rows.splice(index, 1);
 
-  const updatedRows = rows.map((row: any, index: number) => ({
-    ...row,
-    id: index + 1,
+  const updatedRows = rows.map((task, idx) => ({
+    ...task,
+    id: idx + 1,
   }));
+
+  if (updatedRows.length === 0) {
+    fs.writeFileSync(filePath, "id,text,date,priority,done\n", "utf-8");
+    console.log(chalk.green("Task deleted. No tasks left."));
+    return;
+  }
 
   const header = Object.keys(updatedRows[0]).join(",") + "\n";
   const body = updatedRows
     .map(
-      (row: any) =>
-        `${row.id},${row.text},${row.date},${row.priority},${row.done}`,
+      (task) =>
+        `${task.id},"${task.text}",${task.date},${task.priority},${task.done}`,
     )
     .join("\n");
 
-  fs.writeFileSync(filePath, header + body);
+  fs.writeFileSync(filePath, header + body, "utf-8");
 
   console.log(chalk.green(`Task with ID ${id} deleted successfully`));
 };
@@ -174,7 +175,7 @@ export const updateTask = (
   if (options.text !== undefined) task.text = options.text;
   if (options.date !== undefined) task.date = options.date;
   if (options.priority !== undefined) task.priority = String(options.priority);
-  if (options.done !== undefined) task.done = options.done ? "true" : "false";
+  if (options.done !== undefined) task.done = options.done;
 
   const header = Object.keys(rows[0] as TaskType).join(",") + "\n";
   const body = rows
