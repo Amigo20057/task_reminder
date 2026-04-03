@@ -30,6 +30,8 @@ type UpdateOptions = {
   done?: boolean;
 };
 
+const escapeText = (text: string): string => `"${text.replace(/"/g, '""')}"`;
+
 export const getList = (csvFile: Buffer, options: OptionsType) => {
   const rowRecords = parse(csvFile, {
     columns: true,
@@ -72,7 +74,7 @@ export const getList = (csvFile: Buffer, options: OptionsType) => {
       task.id,
       task.done ? chalk.strikethrough.gray(task.text) : task.text,
       chalk.cyan(task.date),
-      task.priority > 3 ? chalk.red(task.priority) : chalk.green(task.priority),
+      chalk.green(task.priority),
       task.done ? chalk.green("✔") : chalk.red("✖"),
     ]);
   });
@@ -90,18 +92,11 @@ export const createTask = (
     skip_empty_lines: true,
   });
 
-  const tasks = rowRecords.map((t: any) => ({
-    id: Number(t.id),
-  }));
-
+  const tasks = rowRecords.map((t: any) => ({ id: Number(t.id) }));
   const newId = tasks.length > 0 ? Math.max(...tasks.map((t) => t.id)) + 1 : 1;
-
-  const safeText = `"${task.text.replace(/"/g, '""')}"`;
-
-  const newRow = `${newId},${safeText},${task.date},${task.priority},false\n`;
+  const newRow = `${newId},${escapeText(task.text)},${task.date},${task.priority},false\n`;
 
   fs.appendFileSync(filePath, newRow);
-
   console.log(chalk.green("Task created successfully"));
 };
 
@@ -128,10 +123,7 @@ export const deleteTask = (filePath: string, id: number) => {
 
   rows.splice(index, 1);
 
-  const updatedRows = rows.map((task, idx) => ({
-    ...task,
-    id: idx + 1,
-  }));
+  const updatedRows = rows.map((task, idx) => ({ ...task, id: idx + 1 }));
 
   if (updatedRows.length === 0) {
     fs.writeFileSync(filePath, "id,text,date,priority,done\n", "utf-8");
@@ -139,16 +131,15 @@ export const deleteTask = (filePath: string, id: number) => {
     return;
   }
 
-  const header = Object.keys(updatedRows[0]).join(",") + "\n";
+  const header = "id,text,date,priority,done\n";
   const body = updatedRows
     .map(
       (task) =>
-        `${task.id},"${task.text}",${task.date},${task.priority},${task.done}`,
+        `${task.id},${escapeText(task.text)},${task.date},${task.priority},${task.done}`,
     )
     .join("\n");
 
   fs.writeFileSync(filePath, header + body, "utf-8");
-
   console.log(chalk.green(`Task with ID ${id} deleted successfully`));
 };
 
@@ -159,33 +150,38 @@ export const updateTask = (
 ) => {
   const csvFile = fs.readFileSync(filePath, "utf-8");
 
-  const rows = parse(csvFile, {
+  const rows: TaskType[] = parse(csvFile, {
     columns: true,
     skip_empty_lines: true,
-  });
+  }).map((row: any) => ({
+    id: Number(row.id),
+    text: row.text,
+    date: row.date,
+    priority: row.priority,
+    done: row.done === "true",
+  }));
 
-  const taskIndex = rows.findIndex((row: any) => Number(row.id) === id);
+  const taskIndex = rows.findIndex((row) => row.id === id);
 
   if (taskIndex === -1) {
     console.log(chalk.red(`Task with ID ${id} not found`));
     return;
   }
 
-  const task = rows[taskIndex] as TaskType;
+  const task = rows[taskIndex];
   if (options.text !== undefined) task.text = options.text;
   if (options.date !== undefined) task.date = options.date;
   if (options.priority !== undefined) task.priority = String(options.priority);
   if (options.done !== undefined) task.done = options.done;
 
-  const header = Object.keys(rows[0] as TaskType).join(",") + "\n";
+  const header = "id,text,date,priority,done\n";
   const body = rows
     .map(
-      (row: any) =>
-        `${row.id},${row.text},${row.date},${row.priority},${row.done}`,
+      (row) =>
+        `${row.id},${escapeText(row.text)},${row.date},${row.priority},${row.done}`,
     )
     .join("\n");
 
-  fs.writeFileSync(filePath, header + body);
-
+  fs.writeFileSync(filePath, header + body, "utf-8");
   console.log(chalk.green(`Task with ID ${id} updated successfully`));
 };

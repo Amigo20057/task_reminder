@@ -13,3 +13,12 @@ export const parseStatus = (status?: string): "done" | "todo" | undefined => {
   }
   return status;
 };
+
+export const parsePriority = (priority?: string): number | undefined => {
+  if (!priority) return undefined;
+  const num = Number(priority);
+  if (isNaN(num) || !Number.isInteger(num) || num < 1 || num > 4) {
+    throw new Error("Invalid priority. Use a number from 1 to 4");
+  }
+  return num;
+};
